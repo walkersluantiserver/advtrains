@@ -269,17 +269,23 @@ end
 --nil    if the node is neither loaded nor in trackdb
 --the distraction between false and nil will be needed only in special cases.(train initpos)
 function advtrains.get_rail_info_at(pos, drives_on)
+	tracy.ZoneBegin("advtrains.get_rail_info_at")
 	local rdp=advtrains.round_vector_floor_y(pos)
 	
 	local node=ndb.get_node_or_nil(rdp)
-	if not node then return end
+	if not node then
+		tracy.ZoneEnd()
+		return
+	end
 	
 	local nodename=node.name
 	if(not advtrains.is_track_and_drives_on(nodename, drives_on)) then
+		tracy.ZoneEnd()
 		return false
 	end
 	local conns, railheight, tracktype=advtrains.get_track_connections(node.name, node.param2)
 	
+	tracy.ZoneEnd()
 	return true, conns, railheight
 end
 

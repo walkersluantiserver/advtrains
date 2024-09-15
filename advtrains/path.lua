@@ -206,6 +206,7 @@ function advtrains.path_get(train, index)
 	local pef = train.path_ext_f
 	-- generate forward (front of train, positive)
 	while index > pef do
+		tracy.ZoneBeginN("advtrains.path_get:forward")
 		local pos = train.path[pef]
 		local connid = train.path_cn[pef]
 		local node_ok, this_conns, adj_pos, adj_connid, conn_idx, nextrail_y, next_conns
@@ -238,6 +239,7 @@ function advtrains.path_get(train, index)
 		end
 		train.path[pef] = adj_pos
 		train.path_dist[pef] = train.path_dist[pef-1] + vector.distance(pos, adj_pos)
+		tracy.ZoneEnd()
 	end
 	train.path_ext_f = pef
 	
@@ -245,6 +247,7 @@ function advtrains.path_get(train, index)
 	local peb = train.path_ext_b
 	-- generate backward (back of train, negative)
 	while index < peb do
+		tracy.ZoneBeginN("advtrains.path_get:backward")
 		local pos = train.path[peb]
 		local connid = train.path_cp[peb]
 		local node_ok, this_conns, adj_pos, adj_connid, conn_idx, nextrail_y, next_conns
@@ -277,6 +280,7 @@ function advtrains.path_get(train, index)
 		end
 		train.path[peb] = adj_pos
 		train.path_dist[peb] = train.path_dist[peb+1] - vector.distance(pos, adj_pos)
+		tracy.ZoneEnd()
 	end
 	train.path_ext_b = peb
 	

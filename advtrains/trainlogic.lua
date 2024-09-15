@@ -858,9 +858,11 @@ local function mknodecallback(name)
 		end
 	end
 	return callt, function(pos, id, train, index, paramx1, paramx2, paramx3)
+		tracy.ZoneBegin("advtrains.run_callbacks_" .. name .. "node")
 		for _,f in ipairs(callt) do
 			f(pos, id, train, index, paramx1, paramx2, paramx3)
 		end
+		tracy.ZoneEnd()
 	end
 end
 

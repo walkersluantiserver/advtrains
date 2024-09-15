@@ -241,6 +241,7 @@ end
 -- If you DON'T modify lzbdata, you MUST pass nil as lzbdata. Always modify the lzbdata table in place, never overwrite it!
 -- udata: user-defined data, do not use externally
 function advtrains.lzb_add_checkpoint(train, index, speed, callback, lzbdata, udata)
+	tracy.ZoneBeginN("advtrains.lzb_add_checkpoint")
 	local lzb = train.lzb
 	local pos = advtrains.path_get(train, index)
 	local lzbdata_c = nil
@@ -260,6 +261,7 @@ function advtrains.lzb_add_checkpoint(train, index, speed, callback, lzbdata, ud
 	table.insert(lzb.checkpoints, ckp)
 	
 	apply_checkpoint_to_path(train, ckp)
+	tracy.ZoneEnd()
 end
 
 
