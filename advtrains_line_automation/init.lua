@@ -42,6 +42,8 @@ function advtrains.lines.save()
 end
 
 function advtrains.lines.step(dtime)
+	tracy.ZoneBeginN("advtrains.lines.step")
 	advtrains.lines.rwt.step(dtime)
 	advtrains.lines.sched.run()
+	tracy.ZoneEnd()
 end

@@ -81,6 +81,7 @@ local function look_ahead(id, train)
 		-- in order to not trigger approach callbacks on the wrong path
 		return
 	end
+	tracy.ZoneBeginN("advtrains.lzb_look_ahead")
 	
 	local acc = advtrains.get_acceleration(train, 1)
 	-- worst-case: the starting point is maximum speed
@@ -122,6 +123,7 @@ local function look_ahead(id, train)
 	
 	lzb.trav_index = trav
 	
+	tracy.ZoneEnd()
 end
 advtrains.lzb_look_ahead = look_ahead
 

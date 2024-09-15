@@ -46,6 +46,7 @@ function iq.add(t, pos, evtdata)
 end
 
 function iq.mainloop(dtime)
+	tracy.ZoneBeginN("atlatc.interrupt.mainloop")
 	timer=timer + math.min(dtime, 0.2)
 	local i=1
 	while i<=#queue do
@@ -66,6 +67,7 @@ function iq.mainloop(dtime)
 			i=i+1
 		end
 	end
+	tracy.ZoneEnd()
 end
 
 

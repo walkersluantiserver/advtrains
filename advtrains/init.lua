@@ -456,6 +456,7 @@ advtrains.save_component = function (tbl, name)
 end
 
 advtrains.avt_save = function(remove_players_from_wagons)
+	tracy.ZoneBeginN("advtrains.avt_save")
 	--atdebug("Saving advtrains files (version 4)")
 	
 	if remove_players_from_wagons then
@@ -551,6 +552,7 @@ advtrains.avt_save = function(remove_players_from_wagons)
 	if DUMP_DEBUG_SAVE then
 		local file, err = io.open(advtrains.fpath.."_DUMP", "w")
 		if err then
+			tracy.ZoneEnd()
 			return
 		end
 		file:write(dump(parts_table))
@@ -566,6 +568,7 @@ advtrains.avt_save = function(remove_players_from_wagons)
 		-- store version
 		advtrains.save_component(4, "version")
 	end
+	tracy.ZoneEnd()
 end
 
 --## MAIN LOOP ##--
@@ -582,6 +585,7 @@ minetest.register_globalstep(function(dtime_mt)
 			-- the advtrains globalstep is skipped by command. Return immediately
 			return
 		end
+		tracy.ZoneBeginN("advtrains.globalstep")
 		within_mainstep = true
 
 		advtrains.mainloop_runcnt=advtrains.mainloop_runcnt+1
@@ -638,7 +642,7 @@ minetest.register_globalstep(function(dtime_mt)
 		end
 
 		within_mainstep = false
-
+		tracy.ZoneEnd()
 end)
 
 --if something goes wrong in these functions, there is no help. no pcall here.
@@ -647,6 +651,7 @@ end)
 -- Causes the loading of everything
 -- first time called in main loop (after the init phase) because luaautomation has to initialize first.
 function advtrains.load()
+	tracy.ZoneBeginN("advtrains.load")
 	advtrains.avt_load() --loading advtrains. includes ndb at advtrains.ndb.load_data()
 	--if atlatc then
 	--	atlatc.load() --includes interrupts
@@ -657,6 +662,7 @@ function advtrains.load()
 	init_load=true
 	no_action=false
 	atlog("[load_all]Loaded advtrains save files")
+	tracy.ZoneEnd()
 end
 
 --## MAIN SAVE ROUTINE ##

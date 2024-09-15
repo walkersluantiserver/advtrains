@@ -67,6 +67,7 @@ local LZB_ZERO_APPROACH_SPEED = 0.2
 tp_player_tmr = 0
 
 advtrains.mainloop_trainlogic=function(dtime, stepno)
+	tracy.ZoneBeginN("advtrains.mainloop_trainlogic")
 	--build a table of all players indexed by pts. used by damage and door system.
 	advtrains.playersbypts={}
 	for _, player in pairs(minetest.get_connected_players()) do
@@ -120,6 +121,7 @@ advtrains.mainloop_trainlogic=function(dtime, stepno)
 	
 	atprintbm("trainsteps", t)
 	endstep()
+	tracy.ZoneEnd()
 end
 
 function advtrains.tp_player_to_train(player)
@@ -241,9 +243,11 @@ local function mkcallback(name)
 		table.insert(callt, func)
 	end
 	return callt, function(id, train, param1, param2, param3)
+		tracy.ZoneBegin("advtrains.run_callbacks_" .. name)
 		for _,f in ipairs(callt) do
 			f(id, train, param1, param2, param3)
 		end
+		tracy.ZoneEnd()
 	end
 end
 
@@ -282,7 +286,8 @@ function advtrains.train_ensure_init(id, train)
 	assertdef(train, "acceleration", 0)
 	assertdef(train, "id", id)
 	
-	
+	tracy.ZoneBeginN("advtrains.train_ensure_init")
+		
 	if not train.drives_on or not train.max_speed then
 		--atprint("in ensure_init: missing properties, updating!")
 		advtrains.update_trainpart_properties(id)
@@ -294,6 +299,7 @@ function advtrains.train_ensure_init(id, train)
 		if not train.last_pos then
 			atlog("Train",id,": Restoring path failed, no last_pos set! Train will be disabled. You can try to fix the issue in the save file.")
 			train.no_step = true
+			tracy.ZoneEnd()
 			return nil
 		end
 		if not train.last_connid then
@@ -318,12 +324,14 @@ function advtrains.train_ensure_init(id, train)
 		if result==false then
 			atlog("Train",id,": Restoring path failed, node at",train.last_pos,"is gone! Train will be disabled. You can try to place a rail at this position and restart the server.")
 			train.no_step = true
+			tracy.ZoneEnd()
 			return nil
 		elseif result==nil then
 			if not train.wait_for_path then
 				atlog("Train",id,": Can't initialize: Waiting for the (yet unloaded) node at",train.last_pos," to be loaded.")
 			end
 			train.wait_for_path = true
+			tracy.ZoneEnd()
 			return false
 		end
 		-- by now, we should have a working initial path
@@ -339,6 +347,7 @@ function advtrains.train_ensure_init(id, train)
 	end
 	
 	train.dirty = false -- TODO einbauen!
+	tracy.ZoneEnd()
 	return true
 end
 
@@ -348,6 +357,7 @@ end
 
 function advtrains.train_step_b(id, train, dtime)
 	if train.no_step or train.wait_for_path or not train.path then return end
+	tracy.ZoneBeginN("advtrains.train_step_b")
 	
 	-- in this code, we check variables such as path_trk_? and path_dist. We need to ensure that the path is known for the whole 'Train' zone
 	advtrains.path_get(train, atfloor(train.index + 2))
@@ -367,7 +377,7 @@ function advtrains.train_step_b(id, train, dtime)
 	]]--
 	
 	--- 3. handle velocity influences ---
-	
+	tracy.ZoneBeginN("advtrains.train_step_b:sit_v_cap")
 	local v0 = train.velocity
 	local sit_v_cap = train.max_speed -- Maximum speed in current situation (multiple limit factors)
 	-- The desired speed change issued by the active control (user or atc)
@@ -410,11 +420,14 @@ function advtrains.train_step_b(id, train, dtime)
 		--atprint("in train_step_b: applying front_off_track")
 		sit_v_cap = 0
 	end
+
+	tracy.ZoneEnd()
 	
 	
 	--interpret ATC command and apply auto-lever control when not actively controlled
 	local userc = train.ctrl_user
 	if userc then
+		tracy.ZoneBeginN("advtrains.train_step_b:ctrl_user")
 		--atprint("in train_step_b: ctrl_user active",userc)
 		advtrains.atc.train_reset_command(train)
 		
@@ -424,7 +437,9 @@ function advtrains.train_step_b(id, train, dtime)
 			ctrl_braking = true
 		end
 		ctrl_lever = userc
+		tracy.ZoneEnd()
 	else
+		tracy.ZoneBeginN("advtrains.train_step_b:ctrl_atc")
 		if train.atc_command then
 			if (not train.atc_delay or train.atc_delay<=0)
 					and not train.atc_wait_finish
@@ -480,6 +495,7 @@ function advtrains.train_step_b(id, train, dtime)
 				ctrl_lever = VLEVER_ROLL
 			end
 		end
+		tracy.ZoneEnd()
 	end
 	
 	--- 2b. look at v_target, determine the effective v_target and desired acceleration ---
@@ -491,6 +507,7 @@ function advtrains.train_step_b(id, train, dtime)
 	-- Iterates over the path nodes we WOULD pass if we were continuing with the current speed
 	-- and determines the MINIMUM of path_speed in this range.
 	-- Then, determines acceleration so that we can reach this 'overridden' target speed in this step (but short-circuited)
+	tracy.ZoneBeginN("advtrains.train_step_b:lzb_v_cap")
 	local lzb_next_zero_barrier -- if defined, train should not pass this point as it's a 0-LZB
 	local new_index_curr_tv -- pre-calculated new train index in lzb check
 	local lzb_v_cap -- the maximum speed that LZB dictates
@@ -528,8 +545,10 @@ function advtrains.train_step_b(id, train, dtime)
 			train.hud_lzb_effect_tmr = train.hud_lzb_effect_tmr - 1
 		end
 	end
+	tracy.ZoneEnd()
 	
 	-- We now need to bring ctrl_*, sit_v_cap and lzb_v_cap together to determine the final controls.
+	tracy.ZoneBeginN("advtrains.train_step_b:v_cap")
 	local v_cap = sit_v_cap -- always defined, by default train.max_speed
 	if lzb_v_cap and lzb_v_cap < v_cap then
 		v_cap = lzb_v_cap
@@ -557,6 +576,7 @@ function advtrains.train_step_b(id, train, dtime)
 		lever = ctrl_lever
 	end
 	train.lever = lever
+	tracy.ZoneEnd()
 	
 	--atprint("in train_step_b: final control: accelerating",accelerating,"braking",braking,"lever", lever, "target", v_tar)
 	
@@ -567,6 +587,7 @@ function advtrains.train_step_b(id, train, dtime)
 	
 	--- 3b. if braking, modify the velocity BEFORE the movement
 	if braking then
+		tracy.ZoneBeginN("advtrains.train_step_b:braking")
 		local dv = advtrains.get_acceleration(train, lever) * dtime
 		local v1 = v0 + dv
 		if v_tar and v1 < v_tar then
@@ -587,10 +608,12 @@ function advtrains.train_step_b(id, train, dtime)
 		--atprint("in train_step_b: Braking: New velocity",v1," (yields acceleration",train.acceleration,")")
 		-- make saved new_index_curr_tv invalid because speed has changed
 		new_index_curr_tv = nil
+		tracy.ZoneEnd()
 	end
 	
 	--- 4. move train ---
 	-- if we have calculated the new end index before, don't do that again
+	tracy.ZoneBeginN("advtrains.train_step_b:movement")
 	if not new_index_curr_tv then
 		local dst_curr_v = train.velocity * dtime
 		new_index_curr_tv = advtrains.path_get_index_by_offset(train, train.index, dst_curr_v)
@@ -673,9 +696,11 @@ function advtrains.train_step_b(id, train, dtime)
 	
 	recalc_end_index(train)
 	--atprint("in train_step_b: New index",train.index,"end",train.end_index,"vel",train.velocity)
+	tracy.ZoneEnd()
 	
 	--- 4a. if accelerating, modify the velocity AFTER the movement
 	if accelerating then
+		tracy.ZoneBeginN("advtrains.train_step_b:accelerating")
 		local dv = advtrains.get_acceleration(train, lever) * dtime
 		local v1 = v0 + dv
 		if v_tar and v1 > v_tar then
@@ -690,7 +715,9 @@ function advtrains.train_step_b(id, train, dtime)
 		train.acceleration = (v1 - v0) / dtime
 		train.velocity = v1
 		--atprint("in train_step_b: Accelerating: New velocity",v1," (yields acceleration",train.acceleration,")")
+		tracy.ZoneEnd()
 	end
+	tracy.ZoneEnd()
 end
 
 function advtrains.train_step_c(id, train, dtime)
@@ -702,6 +729,8 @@ function advtrains.train_step_c(id, train, dtime)
 	
 	-- Return if something(TM) damaged the path
 	if train.no_step or train.wait_for_path or not train.path then return end
+
+	tracy.ZoneBeginN("advtrains.train_step_c")
 	
 	advtrains.path_clear_unused(train)
 	
@@ -811,6 +840,7 @@ function advtrains.train_step_c(id, train, dtime)
 			end
 		end
 	end
+	tracy.ZoneEnd()
 end
 
 -- Default occupation callbacks for node callbacks

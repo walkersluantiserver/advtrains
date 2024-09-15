@@ -201,6 +201,7 @@ function advtrains.path_get(train, index)
 	if index ~= atfloor(index) then
 		error("For train "..train.id..": Called path_get() but index="..index.." is not a round number")
 	end
+	tracy.ZoneBeginN("advtrains.path_get")
 	
 	local pef = train.path_ext_f
 	-- generate forward (front of train, positive)
@@ -286,8 +287,8 @@ function advtrains.path_get(train, index)
 		train.path_req_f = index
 	end
 	
+	tracy.ZoneEnd()
 	return train.path[index], (index<=train.path_trk_f and index>=train.path_trk_b)
-	
 end
 
 -- interpolated position to fractional index given, and angle based on path_dir
