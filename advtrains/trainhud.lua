@@ -191,8 +191,7 @@ function advtrains.hud_train_format(train, wdata)
 	local flip = wdata.wagon_flipped
 	local max = train.max_speed or 10
 	local res = train.speed_restriction
-	local vel = advtrains.abs_ceil(train.velocity)
-	local vel_kmh=advtrains.abs_ceil(advtrains.ms_to_kmh(train.velocity))
+	local vel = math.abs(train.velocity)
 	
 	local tlev=train.lever or 3
 	if train.velocity==0 and not train.active_control then tlev=1 end
@@ -229,15 +228,6 @@ function advtrains.hud_train_format(train, wdata)
 	---[[ door
 	hud:add(283, 10, T"advtrains_hud_door.png":multiply(train.door_open==-1 and "white" or "darkslategray"))
 	hud:add(298, 10, T"advtrains_hud_door.png":multiply(train.door_open==1 and "white" or "darkslategray"):transform"FX")
-	--]]
-	--[[ speed indicators
-	hud:add_segmentbar_leftright(10, 65, 217, 20, 3, 20, max, 20, "darkslategray", 0, vel, "white")
-	if res and res > 0 then
-		hud:add_fill(7+res*11, 60, 3, 30, "red")
-	end
-	if train.tarvelocity then
-		hud:add(1+train.tarvelocity*11, 85, T"advtrains_hud_arrow.png":transform"FY":multiply"cyan")
-	end
 	--]]
 	local lzbdisp
 	local lzb = train.lzb
@@ -279,47 +269,56 @@ function advtrains.hud_train_format(train, wdata)
 	hud:add_fill(248, 35, 30, 5, lzbdisp.c)
 	hud:add_smallnum(248, 20, 2, lzbdisp.d, 4, lzbdisp.c)
 
-	hud:add_n7seg(390, 10, 100, 80, vel, 2, "red")
+	hud:add_n7seg(390, 10, 100, 80, math.round(vel), 2, "red")
 
 	---[[ new speed indication bar
 	local dispmax = 100
 	local vmax = train.max_speed or 20
-	for _, n in ipairs {10, 15, 20, 30, 50, 60} do
+	for _, n in ipairs {10, 15, 20, 30, 50, 60, 75} do
 		if vmax and train.max_speed <= n then
 			dispmax = n
 			break
 		end
 	end
 	local vsize = 300/dispmax
-	hud:add_fill(10, 60, train.velocity*vsize, 30, "white")
+	hud:add_fill(10, 50, vel*vsize, 25, "white")
 
 	local vmaxmark = 10+math.floor(vmax*vsize)
-	hud:add_fill(vmaxmark, 60, 310-vmaxmark, 30, "darkslategray")
+	hud:add_fill(vmaxmark, 50, 310-vmaxmark, 25, "darkslategray")
 
 	local largestep = dispmax > 30 and 10 or 5
 	local smallstep = dispmax > 30 and 2 or 1
-	for i = smallstep, vmax, smallstep do
-		local markpos = math.min(9 + i*vsize, vmaxmark-2)
-		local marksize = 20
+	for i = 0, vmax, smallstep do
+		local markpos = math.min(9 + math.max(1, i*vsize), vmaxmark, 308)
+		local marksize = 15
 		if i % largestep == 0 then
-			marksize = 30
+			marksize = 25
 
-			local numlen = math.floor(math.log10(i)) + 1
-			hud:add_smallnum(markpos + 4 - 8*numlen, 45, 2, i, numlen, "gray")
+			local numlen = math.floor(math.log10(math.max(i, 1))) + 1
+			local numpos = markpos + 2 - 4*numlen
+			if i/10^numlen < 0.2 then
+				numpos = numpos - 2
+			end
+			numpos = math.min(math.max(numpos, 10), 308 + 4 - 8*numlen)
+			hud:add_smallnum(numpos, 80, 2, i, numlen, "gray")
 		end
-		hud:add_fill(markpos, 60, 2, marksize, "gray")
+		hud:add_fill(markpos, 50, 2, marksize, "gray")
 	end
 
 	if res and res > 0 then
-		hud:add_fill(math.min(10+math.max(0, math.floor(res*vsize)-1), vmaxmark-2), 60, 2, 30, "red")
+		hud:add_fill(math.min(9 + res*vsize, vmaxmark, 308), 50, 2, 25, "red")
 	end
 
-	if train.tarvelocity then
-		hud:add_fill(math.min(10+math.max(0, math.floor(train.tarvelocity*vsize)-1), vmaxmark-2), 60, 2, 10, "cyan")
-	end
-
-	if lzbspd then
-		hud:add_fill(math.min(10+math.max(0, math.floor(lzbspd*vsize)-1), vmaxmark-2), 80, 2, 10, "orange")
+	-- [lowpart:...^[transform... does not seem to work well so we do not use it for now
+	-- Otherwise we could "crop" the arrows at the edges of the bar.
+	for _, arr in pairs {
+		{v = train.tarvelocity, y = 50, fill = "cyan", left = "FXR90", right = "R270"},
+		{v = lzbspd, y = 65, fill = "orange", left = "R90", right = "FXR270"},
+	} do
+		if arr.v then
+			local x = math.max(math.min(5+math.floor(arr.v*vsize), vmaxmark-5, 304), 6)
+			hud:add(x, arr.y, T"advtrains_hud_speed_arrow.png":multiply(arr.fill):transform(arr.left))
+		end
 	end
 	--]]
 	
@@ -398,7 +397,7 @@ core.register_on_player_receive_fields(function(player, formname, fields)
 		end
 	end
 	hud.velocity = math.min(hud.velocity, hud.max_speed)
-	if hud.speed_restriction <= 0 then
+	if hud.speed_restriction and hud.speed_restriction <= 0 then
 		hud.speed_restriction = nil
 	end
 

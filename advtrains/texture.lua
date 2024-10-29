@@ -51,6 +51,10 @@ end
 function tx.base(str)
 	return tx.raw(tx.escape(str))
 end
+function tx.lowpart(ratio, file)
+	return tx.raw(("[lowpart:%d:%s"):format(ratio*100, tx.escape(file)))
+end
+
 -- TODO: use [fill when 5.8.0 becomes widely used client-side
 function tx.fill(w, h, color)
 	return tx"advtrains_hud_bg.png":resize(w, h):colorize(color)
@@ -69,6 +73,14 @@ tx_lib.resize = mkmodifier("[resize:%dx%d", {})
 tx_lib.transform = mkmodifier("[transform%s", {tx.escape})
 tx_lib.makealpha = mkmodifier("[makealpha:%s", {tx.escape})
 tx_lib.verticalframe = mkmodifier("[verticalframe:%d:%d]", {})
+tx_lib.overlay_raw = xmkmodifier(tostring)
+tx_lib.overlay = function(self, texture)
+	if type(texture) == "string" then
+		return self:overlay_raw(tx.escape(texture))
+	else
+		return self:overlay_raw(texture)
+	end
+end
 
 -- [combine
 
